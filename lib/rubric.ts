@@ -93,7 +93,12 @@ export interface Applicant {
 
 export interface Record_ {
   applicantId: string;
-  transcript: { role: "bot" | "applicant"; text: string }[];
+  transcript: {
+    role: "bot" | "applicant";
+    text: string;
+    evidence?: Evidence[];
+    flags?: Flag[];
+  }[];
   evidence: Evidence[];
   flags: Flag[];
   probeCount: number;
