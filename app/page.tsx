@@ -172,6 +172,7 @@ export default function Page() {
           applicantId: active,
           transcript,
           turnIndex: rec.probeCount,
+          established: rec.evidence.map((e) => e.because),
         }),
       });
       const d = await res.json();
@@ -253,8 +254,17 @@ export default function Page() {
             const picked = alloc.training.includes(p.id);
             const placed = alloc.placement.includes(p.id);
             return (
+              <div key={p.id}>
+              {i === TRAINING_SPOTS && interviewed > 0 && (
+                <div className="flex items-center gap-2 my-2 px-1">
+                  <div className="h-px flex-1 bg-amber-500/40" />
+                  <span className="text-[9px] uppercase tracking-widest text-amber-500/70">
+                    cutline
+                  </span>
+                  <div className="h-px flex-1 bg-amber-500/40" />
+                </div>
+              )}
               <button
-                key={p.id}
                 onClick={() => setActive(p.id)}
                 className={`w-full text-left px-3 py-2 rounded border transition ${
                   active === p.id
@@ -293,6 +303,7 @@ export default function Page() {
                   )}
                 </div>
               </button>
+              </div>
             );
           })}
         </aside>

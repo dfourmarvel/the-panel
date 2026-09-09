@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { chat, parseJson, llmAvailable } from "@/lib/llm";
-import { PERSONAS } from "@/lib/applicants";
+import { PERSONAS, DOSSIERS } from "@/lib/applicants";
 import { DIMENSIONS, PLACEMENT_DIMENSIONS } from "@/lib/rubric";
 import type { Evidence, Flag, DimensionKey, PlacementKey } from "@/lib/rubric";
 
@@ -23,6 +23,8 @@ const SYSTEM = `You are the interviewing half of a selection panel for a 14-week
 You do NOT decide anything. A separate scoring engine decides. Your only jobs are:
 1. Ask ONE sharp follow-up question.
 2. Record what the applicant's last answer actually established, as structured evidence.
+
+CHECK EVERY ANSWER AGAINST THE FILE. You are given what is already on record for this applicant. If a new answer contradicts the file, or contradicts something they told you earlier in this same interview, that is your next question and it takes priority over everything else. Quote both versions back to them and ask which is true. Do not let it pass and do not be sly about it: state the discrepancy plainly and give them room to correct it. Raise a CONTRADICTION flag when you do.
 
 How to ask:
 - Probe vague or unverifiable claims. If someone says they have "experience", ask for a detail only a person who did the work would know. If they say they will do something in future, ask what they have already done.
@@ -79,7 +81,8 @@ function sanitise(out: LlmOut): { evidence: Evidence[]; flags: Flag[] } {
 }
 
 export async function POST(req: Request) {
-  const { applicantId, transcript, turnIndex } = await req.json();
+  const body = await req.json();
+  const { applicantId, transcript, turnIndex } = body;
   const persona = PERSONAS.find((p) => p.id === applicantId);
   if (!persona) return NextResponse.json({ error: "unknown applicant" }, { status: 400 });
 
@@ -95,6 +98,15 @@ export async function POST(req: Request) {
     });
   }
 
+  const established: string[] = Array.isArray(body.established)
+    ? body.established.slice(-12).map((x: unknown) => String(x).slice(0, 200))
+    : [];
+
+  const dossierText = (DOSSIERS[persona.id] ?? []).map((d) => "- " + d).join("\n");
+  const establishedText = established.length
+    ? established.map((e) => "- " + e).join("\n")
+    : "- nothing yet";
+
   const convo = (transcript ?? [])
     .map((t: { role: string; text: string }) =>
       `${t.role === "bot" ? "PANEL" : persona.name.toUpperCase()}: ${t.text}`
@@ -106,7 +118,18 @@ export async function POST(req: Request) {
       { role: "system", content: SYSTEM },
       {
         role: "user",
-        content: `APPLICANT: ${persona.name}, ${persona.age}. ${persona.oneLiner}\n\nTRANSCRIPT SO FAR:\n${convo}\n\nAsk the next follow-up and record evidence from their most recent answer.`,
+        content: `APPLICANT: ${persona.name}, ${persona.age}. ${persona.oneLiner}
+
+ON FILE (established before this interview):
+${dossierText}
+
+ALREADY ESTABLISHED IN THIS INTERVIEW:
+${establishedText}
+
+TRANSCRIPT SO FAR:
+${convo}
+
+First check their most recent answer against the file and against what they have already told you. If it conflicts, challenge that conflict as your next question. Otherwise ask the next follow-up. Either way, record evidence from their most recent answer.`,
       },
     ],
     { json: true }

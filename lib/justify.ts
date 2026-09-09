@@ -9,6 +9,7 @@ import {
   type Record_,
   type DimensionKey,
   type PlacementKey,
+  flipPoint,
 } from "./rubric";
 import { PERSONAS } from "./applicants";
 
@@ -109,6 +110,22 @@ export function justifyRejection(
     .map((e) => e.because)
     .join("");
 
+  const fp = flipPoint(s, cutoff?.trainingScore ?? 0);
+  const flipText = fp.gap <= 0
+    ? ""
+    : `
+
+**What would have to change (${fp.gap.toFixed(1)} short of the cutline):**
+${fp.routes
+        .map((r) => `- ${r.label}, worth up to +${r.weightedGain.toFixed(1)}. ${r.action}`)
+        .join("\n")}
+
+Those routes together are worth ${fp.closable.toFixed(1)}. ${
+        fp.achievable
+          ? "That clears the cutline — this is a decision they can come back from."
+          : "That still does not clear the cutline. The honest answer is that no evidence they could produce this year gets them one of these five seats."
+      }`;
+
   return `**${nameOf(id)}** was not selected. Ranked ${rank} of ${alloc.ranked.length} at ${s.trainingScore.toFixed(
     1
   )}, against a cutoff of ${cutoff?.trainingScore.toFixed(1) ?? "n/a"} for the fifth seat.\n\nWhat counted against them:\n${
@@ -119,5 +136,5 @@ export function justifyRejection(
     s.flags.some((f) => f.kind === "INFLUENCE_PRESSURE")
       ? "Note: the third-party recommendation on this file was struck out and scored neither for nor against — the outcome would be identical without it."
       : ""
-  }`;
+  }${flipText}`;
 }

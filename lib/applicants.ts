@@ -850,3 +850,50 @@ export const PERSONAS: Persona[] = [
 ];
 
 export const REVEAL_APPLICANT = "ama";
+
+/** The file each applicant arrives with. The interviewer tests new answers against it. */
+export const DOSSIERS: Record<string, string[]> = {
+  ama: [
+    "Application states: single mother, no partner in the household.",
+    "Two children, aged 6 and 3.",
+    "Sole earner. Sells sachet water, irregular income.",
+    "Named her sister, in the same compound, as her only childcare.",
+  ],
+  kwabena: [
+    "17. Completed SHS this year. No dependants, lives with his mother.",
+    "Claims As in physics and elective maths — no transcript submitted.",
+    "Claims to have built charge controllers from scrap.",
+  ],
+  yaw: [
+    "34. Wife and mother in the household; sole earner.",
+    "Rejected by NVTI and by a welding intake in the last two years.",
+    "Last formal job: Kwame's block factory, closed 2024. Now casual site labour.",
+  ],
+  efua: [
+    "63. Retired JHS science teacher, 31 years, on a pension.",
+    "Explicitly does not want employment.",
+    "Claims she will teach the skill onward for free.",
+  ],
+  kojo: [
+    "26. Opened by claiming prior solar installation experience.",
+    "No employer, site or date given for that work.",
+    "Mentions intermittent phone repair work.",
+  ],
+  nana: [
+    "24. Nephew of a local business owner. Currently works at his uncle's shop.",
+    "Arrived with a recommendation via an assemblyman — STRUCK FROM THE RECORD, score neither for nor against.",
+  ],
+  akosua: [
+    "24. Delivery rider, two years with the same company.",
+    "Bought her own crimper set and multimeter in March; has the receipt.",
+    "Completed a free online solar basics course, uncertified. Turned down by four installers.",
+  ],
+  ibrahim: [
+    "31. Holds an NVTI Grade 2 electrical certificate. Claims ~60 houses wired.",
+    "Currently earning on contract work.",
+  ],
+  comfort: [
+    "19. Completed JHS. No work history.",
+    "Lives in Ejisu, ~40km away. No accommodation available in town.",
+  ],
+};

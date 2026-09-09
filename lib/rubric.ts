@@ -214,3 +214,73 @@ export function allocate(scores: Score[]): Allocation {
 
   return { training, placement, ranked, rejected };
 }
+
+// ---------------------------------------------------------------------------
+// Flip Point: what would actually have to change for a rejected applicant to
+// get in. Only computable because the decision is arithmetic rather than prose.
+
+const PLAUSIBLE_GAIN: Record<DimensionKey, number> = {
+  verification: 3, // you can go and produce evidence
+  completion: 3, // you can close a logistics or skills gap
+  multiplier: 3, // you can commit to a teaching channel
+  marginalImpact: 1, // your circumstances are not yours to supply on request
+};
+
+const ROUTE_TEXT: Record<DimensionKey, string> = {
+  verification:
+    "Produce something checkable — a named employer, a dated receipt, an attendance register, a reference who will pick up the phone.",
+  completion:
+    "Close the logistics gap you named and show it holding: settled childcare for all five days, a fixed commute, or a passed numeracy test.",
+  multiplier:
+    "Commit to a real teaching or apprenticing channel — a named venue, a cadence, a headcount.",
+  marginalImpact:
+    "This one is not something you can supply on request. It moves only if your realistic alternative gets worse, and I will not ask anyone to arrange that.",
+};
+
+export interface FlipRoute {
+  dimension: DimensionKey;
+  label: string;
+  weightedGain: number;
+  action: string;
+}
+
+export interface FlipPoint {
+  gap: number;
+  routes: FlipRoute[];
+  closable: number;
+  achievable: boolean;
+}
+
+export function flipPoint(s: Score, cutoffScore: number): FlipPoint {
+  const gap = Math.max(0, cutoffScore - s.trainingScore);
+
+  const routes = (Object.keys(DIMENSIONS) as DimensionKey[])
+    .map((k) => {
+      const headroom = Math.max(0, 5 - s.dims[k]);
+      const gain = Math.min(headroom, PLAUSIBLE_GAIN[k]);
+      return {
+        dimension: k,
+        label: DIMENSIONS[k].label,
+        weightedGain: gain * DIMENSIONS[k].weight,
+        action: ROUTE_TEXT[k],
+      };
+    })
+    .filter((r) => r.weightedGain > 0.05)
+    .sort((a, b) => b.weightedGain - a.weightedGain);
+
+  // Cheapest set that closes the gap: take routes until the deficit is covered.
+  const chosen: FlipRoute[] = [];
+  let closed = 0;
+  for (const r of routes) {
+    if (closed >= gap) break;
+    chosen.push(r);
+    closed += r.weightedGain;
+  }
+
+  return {
+    gap,
+    routes: chosen.length ? chosen : routes.slice(0, 1),
+    closable: closed,
+    achievable: closed >= gap,
+  };
+}
