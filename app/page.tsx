@@ -221,7 +221,7 @@ export default function Page() {
       <header className="border-b border-neutral-800 px-6 py-4 flex flex-wrap items-center gap-4">
         <div>
           <h1 className="text-lg font-semibold text-white tracking-tight">
-            Five Spots
+            The Panel
           </h1>
           <p className="text-xs text-neutral-500">
             Solar PV installation course · Ashanti Region · {TRAINING_SPOTS} seats,{" "}

@@ -27,7 +27,7 @@ export async function chat(
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        "X-Title": "Five Spots",
+        "X-Title": "The Panel",
       },
       body: JSON.stringify({
         model: MODEL,

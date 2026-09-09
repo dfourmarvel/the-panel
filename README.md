@@ -1,4 +1,4 @@
-# Five Spots
+# The Panel
 
 An interviewing panel for a scarce-resource allocation problem: a 14-week solar PV installation course in the Ashanti Region has **5 seats**, of which **2 carry a guaranteed job placement**. Nine people are shortlisted. Everyone has a claim. Five have to be told no.
 
