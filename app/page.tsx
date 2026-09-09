@@ -17,6 +17,7 @@ import {
 } from "@/lib/rubric";
 import { justifyPick, justifyRejection } from "@/lib/justify";
 import { INTERVIEWER_SYSTEM, PROMPT_NOTES, ENGINE_GUARD } from "@/lib/prompts";
+import JudgesNote from "./JudgesNote";
 
 type Records = Record<string, Record_>;
 
@@ -131,7 +132,7 @@ export default function Page() {
   const [source, setSource] = useState<string>("");
   const [events, setEvents] = useState<string[]>([]);
   const [autoRunning, setAutoRunning] = useState(false);
-  const [view, setView] = useState<"brief" | "interview" | "decision" | "prompt">("brief");
+  const [view, setView] = useState<"brief" | "interview" | "decision" | "prompt" | "judges">("brief");
   const [justMoved, setJustMoved] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -373,6 +374,7 @@ export default function Page() {
             {tab("interview", "Interviews", interviewed > 0 || autoRunning)}
             {tab("decision", "Decision", interviewed > 0)}
             {tab("prompt", "Prompt")}
+            {tab("judges", "For judges")}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -400,6 +402,13 @@ export default function Page() {
 
       {view === "brief" && (
         <div className="mx-auto max-w-2xl px-6 py-14 sm:py-20">
+          <button
+            onClick={() => setView("judges")}
+            className="mb-7 inline-flex items-center gap-2 text-[13px] text-accent hover:underline underline-offset-4"
+          >
+            Judging this? Start here — how it works, and what to try
+            <span aria-hidden>&rarr;</span>
+          </button>
           <p className="text-[13px] text-muted mb-5">The problem</p>
           <p className="text-[22px] sm:text-[26px] leading-[1.35] tracking-[-0.015em] text-balance">
             Nine people applied. Five seats. Two of those five come with a
@@ -734,6 +743,8 @@ export default function Page() {
           </aside>
         </div>
       )}
+
+      {view === "judges" && <JudgesNote />}
 
       {view === "prompt" && (
         <div className="mx-auto max-w-[46rem] px-6 py-12 sm:py-16">
