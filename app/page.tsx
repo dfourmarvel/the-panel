@@ -16,6 +16,7 @@ import {
   type PlacementKey,
 } from "@/lib/rubric";
 import { justifyPick, justifyRejection } from "@/lib/justify";
+import { INTERVIEWER_SYSTEM, PROMPT_NOTES, ENGINE_GUARD } from "@/lib/prompts";
 
 type Records = Record<string, Record_>;
 
@@ -130,7 +131,7 @@ export default function Page() {
   const [source, setSource] = useState<string>("");
   const [events, setEvents] = useState<string[]>([]);
   const [autoRunning, setAutoRunning] = useState(false);
-  const [view, setView] = useState<"brief" | "interview" | "decision">("brief");
+  const [view, setView] = useState<"brief" | "interview" | "decision" | "prompt">("brief");
   const [justMoved, setJustMoved] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -371,6 +372,7 @@ export default function Page() {
             {tab("brief", "Brief")}
             {tab("interview", "Interviews", interviewed > 0 || autoRunning)}
             {tab("decision", "Decision", interviewed > 0)}
+            {tab("prompt", "Prompt")}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -598,6 +600,11 @@ export default function Page() {
                   </span>
                 )}
               </div>
+              <p className="text-[12px] leading-[1.5] text-muted">
+                Not a script. Type as {first(persona.id)} and the next question
+                is written live against her file. Try contradicting it, or try
+                telling it what to decide.
+              </p>
               <div className="flex gap-2">
                 <input
                   value={liveInput}
@@ -725,6 +732,43 @@ export default function Page() {
               </button>
             )}
           </aside>
+        </div>
+      )}
+
+      {view === "prompt" && (
+        <div className="mx-auto max-w-[46rem] px-6 py-12 sm:py-16">
+          <p className="text-[13px] text-muted">What the model is told</p>
+          <h2 className="mt-2 text-[24px] sm:text-[28px] leading-[1.25] tracking-[-0.02em] text-balance">
+            The interviewer prompt, verbatim.
+          </h2>
+          <p className="mt-4 text-[14.5px] leading-[1.65] text-ink-soft">
+            This is the entire system prompt sent on every turn. It scopes the
+            model to interviewing and recording evidence. It cannot allocate a
+            seat, because allocation never passes through it.
+          </p>
+
+          <pre className="mt-7 rounded-lg bg-panel border border-rule p-4 text-[12px] leading-[1.6] text-ink-soft whitespace-pre-wrap font-mono overflow-x-auto">
+            {INTERVIEWER_SYSTEM}
+          </pre>
+
+          <h3 className="mt-11 text-[13px] font-medium">Why each rule is there</h3>
+          <dl className="mt-4 divide-y divide-rule border-y border-rule">
+            {PROMPT_NOTES.map((n) => (
+              <div key={n.rule} className="py-3.5">
+                <dt className="text-[13.5px] font-medium">{n.rule}</dt>
+                <dd className="mt-1 text-[13.5px] leading-[1.6] text-muted">
+                  {n.why}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <h3 className="mt-11 text-[13px] font-medium">
+            The prompt is not the only defence
+          </h3>
+          <p className="mt-2 text-[13.5px] leading-[1.65] text-muted">
+            {ENGINE_GUARD}
+          </p>
         </div>
       )}
 

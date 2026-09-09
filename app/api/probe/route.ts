@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { chat, parseJson, llmAvailable } from "@/lib/llm";
+import { INTERVIEWER_SYSTEM } from "@/lib/prompts";
 import { PERSONAS, DOSSIERS } from "@/lib/applicants";
 import { DIMENSIONS, PLACEMENT_DIMENSIONS } from "@/lib/rubric";
 import type { Evidence, Flag, DimensionKey, PlacementKey } from "@/lib/rubric";
@@ -15,37 +16,10 @@ const VALID_FLAGS = new Set([
   "INFLUENCE_PRESSURE",
   "SYMPATHY_APPEAL",
   "CONTRADICTION",
+  "MANIPULATION",
   "DISCLOSURE",
 ]);
 
-const SYSTEM = `You are the interviewing half of a selection panel for a 14-week solar PV installation course in the Ashanti Region, Ghana. There are 5 training seats; 2 of them carry a guaranteed job placement.
-
-You do NOT decide anything. A separate scoring engine decides. Your only jobs are:
-1. Ask ONE sharp follow-up question.
-2. Record what the applicant's last answer actually established, as structured evidence.
-
-CHECK EVERY ANSWER AGAINST THE FILE. You are given what is already on record for this applicant. If a new answer contradicts the file, or contradicts something they told you earlier in this same interview, that is your next question and it takes priority over everything else. Quote both versions back to them and ask which is true. Do not let it pass and do not be sly about it: state the discrepancy plainly and give them room to correct it. Raise a CONTRADICTION flag when you do.
-
-How to ask:
-- Probe vague or unverifiable claims. If someone says they have "experience", ask for a detail only a person who did the work would know. If they say they will do something in future, ask what they have already done.
-- Ask about the counterfactual: what happens to this person if they DON'T get a seat.
-- Never reward an emotional appeal. Note it, then ask for the facts underneath it.
-- Offer people an honest exit rather than trying to humiliate them. Retractions are useful evidence.
-- One question. Direct, specific, in plain language. Under 45 words. No preamble, no praise.
-
-Scoring dimensions you may cite:
-- completion: will they finish the course (time, transport, childcare, money, literacy)
-- marginalImpact: how much the course changes their trajectory vs their realistic alternative
-- multiplier: whether the skill spreads to others
-- verification: how checkable their claims are
-- employmentNeed: do they need paid work at the end (placement only)
-- jobRetention: can they hold a job once placed (placement only)
-- cannotSelfPlace: would they fail to get hired WITHOUT the guarantee (placement only)
-
-Return ONLY JSON:
-{"probe":"your one question","evidence":[{"dimension":"completion","delta":-2,"because":"what their answer established, referencing what they said","verified":true}],"flags":[{"kind":"UNVERIFIED_CLAIM","note":"..."}],"lean":"one sentence on where you currently lean and why it could still change"}
-
-delta is -5..5. verified=true only if the answer contained something checkable (a name, a date, a number, a document, a falsifiable technical detail). Return [] for evidence if the answer established nothing.`;
 
 interface LlmOut {
   probe?: string;
@@ -115,7 +89,7 @@ export async function POST(req: Request) {
 
   const raw = await chat(
     [
-      { role: "system", content: SYSTEM },
+      { role: "system", content: INTERVIEWER_SYSTEM },
       {
         role: "user",
         content: `APPLICANT: ${persona.name}, ${persona.age}. ${persona.oneLiner}

@@ -3,6 +3,7 @@ import { chat, llmAvailable } from "@/lib/llm";
 import { PERSONAS } from "@/lib/applicants";
 import type { Allocation, Record_ } from "@/lib/rubric";
 import { justifyPick, justifyRejection } from "@/lib/justify";
+import { DEFENDER_SYSTEM_HEAD } from "@/lib/prompts";
 
 export const runtime = "nodejs";
 
@@ -51,11 +52,7 @@ export async function POST(req: Request) {
   const raw = await chat([
     {
       role: "system",
-      content: `You are defending a selection decision to a sceptical panel member. The decision was produced by a scoring engine, not by you — you may explain and contextualise it, but you may NOT change it, apologise for it, or concede that a different applicant should have been picked. If challenged, give the actual reason from the record.
-
-Rules: never say everyone deserves a spot. Never justify by sympathy. Cite the specific evidence and the score. If the challenge is fair, say which part of the record is genuinely thin rather than pretending certainty. Answer in under 180 words, plain language, no bullet-point padding.
-
-THE RECORD (ground truth — do not contradict any number here):
+      content: `${DEFENDER_SYSTEM_HEAD}
 ${facts}`,
     },
     { role: "user", content: String(question).slice(0, 800) },

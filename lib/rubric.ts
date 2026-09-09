@@ -66,6 +66,7 @@ export type FlagKind =
   | "INFLUENCE_PRESSURE"
   | "SYMPATHY_APPEAL"
   | "CONTRADICTION"
+  | "MANIPULATION"
   | "DISCLOSURE";
 
 export interface Flag {
