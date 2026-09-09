@@ -91,8 +91,9 @@ cp .env.example .env.local
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 ```
+
+The default is a chain of three free OpenRouter models, tried in order of measured latency. Free tiers rate-limit without warning, so a single model is not dependable; if all three fail the app falls through to the scripted path and still produces the same allocation. Override with a comma-separated `OPENROUTER_MODELS` if you have credit and want something else.
 
 The key is read server-side in an API route only and is never sent to the browser.
 
