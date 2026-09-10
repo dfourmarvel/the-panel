@@ -42,7 +42,7 @@ So the top-scoring applicant is not automatically given a job guarantee. A guara
 
 **No cop-outs.** The engine allocates exactly 5 and exactly 2. "Everyone deserves a spot" is not representable.
 
-**Not first-come, not random.** Order of interview has no effect on score. Rerun it and you get the same five.
+**Not first-come, not random.** Order of interview has no effect on score, and neither does the order evidence arrives in within one interview — dimensions accumulate raw and are clamped once at the end, so a saturating answer can't make the outcome depend on when it was given. Rerun it and you get the same five. There's a test for exactly that case.
 
 **Not sympathy.** Emotional framing is caught by a `SYMPATHY_APPEAL` flag, logged, and excluded from scoring — while the *facts* inside the appeal are scored normally. Yaw's "this is my last shot" contributes nothing. His eight months of unpaid evening maths classes, with a named teacher and an attendance register, contribute a lot.
 
@@ -68,9 +68,23 @@ So the top-scoring applicant is not automatically given a job guarantee. A guara
 | 8 | Comfort Asante | −2.9 | — |
 | 9 | Nana Agyeman | −11.3 | — |
 
-The result the rubric produces that a sympathetic reader wouldn't: **the least dramatic applicant wins.** Akosua has no crisis to report. She bought a crimper set and a multimeter with her own money in March, kept the receipt, taught herself the theory on a free course she couldn't afford to get certified for, was turned down by four companies, and was told by one of them that they don't put women on roofs. She tops both rubrics because evidence beats narrative, and because a certificate is the exact and only thing standing between her and a job.
+Worth being straight about what this table is. In scripted mode I authored the evidence deltas for all nine personas, so the ranking is not something the engine discovered — it is what these weights do to this evidence, and I chose both. The claim is not "the machine found the right answer." It is narrower and, I think, more useful: **these are the priorities I am willing to defend, here is the arithmetic that follows from them, and you can attack either half.** Change a weight and the table changes in front of you. In live mode the deltas come from the interview instead, and the same engine runs unmodified.
+
+What the weights are built to do, and what a sympathetic reader would not: **rank the least dramatic applicant first.** Akosua has no crisis to report. She bought a crimper set and a multimeter with her own money in March, kept the receipt, taught herself the theory on a free course she couldn't afford to get certified for, was turned down by four companies, and was told by one of them that they don't put women on roofs. She tops both rubrics because evidence beats narrative, and because a certificate is the exact and only thing standing between her and a job.
 
 The hardest rejection to defend is Ibrahim — a certified electrician who'd be job-ready fastest. He's cut on marginal impact: a free manufacturer training route exists that he confirms he could take, and he already earns more than the placement pays. Giving him a seat converts a scarce resource into a convenience.
+
+## Checking it
+
+The whole argument is that the mechanics are verifiable rather than assertable, so they're asserted in a test file instead of only in this README:
+
+```bash
+npm test
+```
+
+No test dependencies — Node strips the types and runs `lib/rubric.test.ts` directly. Six checks: exactly 5 seats and exactly 2 guarantees, no guarantee without a seat, the 2-probe minimum holds against overwhelming evidence, the same evidence scores identically in any order, unverified claims are discounted rather than dropped, and the top training score does not carry a job guarantee with it.
+
+These check the mechanics, not the values. Whether *marginal impact* deserves a weight of 1.5 is an argument, and arguments don't have unit tests.
 
 ## Challenging it
 

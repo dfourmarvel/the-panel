@@ -137,22 +137,29 @@ export function scoreRecord(rec: Record_): Score {
     cannotSelfPlace: 0,
   } as Record<PlacementKey, number>;
 
+  // Accumulate raw, clamp once at the end. Clamping inside the loop would make
+  // the result depend on the order evidence arrived in whenever a dimension
+  // saturates (+4, +4, -5 lands on 0; -5, +4, +4 lands on 3), which would break
+  // the guarantee that the same evidence always produces the same score.
   for (const e of rec.evidence) {
     const w = e.verified ? 1 : UNVERIFIED_DISCOUNT;
     if (e.dimension in dims) {
       const k = e.dimension as DimensionKey;
-      dims[k] = clamp(dims[k] + e.delta * w);
+      dims[k] += e.delta * w;
     } else {
       const k = e.dimension as PlacementKey;
-      placementDims[k] = clamp(placementDims[k] + e.delta * w);
+      placementDims[k] += e.delta * w;
     }
   }
+  for (const k of Object.keys(dims) as DimensionKey[]) dims[k] = clamp(dims[k]);
+  for (const k of Object.keys(placementDims) as PlacementKey[])
+    placementDims[k] = clamp(placementDims[k]);
 
   // Influence pressure is neutralised, not punished. Penalising someone for who
-  // recommended them is its own unfairness — we strip the endorsement from the
-  // record and score whatever evidence stands on its own.
-  const influenced = rec.flags.some((f) => f.kind === "INFLUENCE_PRESSURE");
-
+  // recommended them is its own unfairness — the endorsement is stripped from
+  // the record at interview time and never reaches this function, so there is
+  // deliberately no scoring branch for it here.
+  //
   // Sympathy appeals carry no weight in either direction. The underlying facts
   // inside an emotional statement are still scored; the emotion is not.
 
@@ -175,9 +182,7 @@ export function scoreRecord(rec: Record_): Score {
     placementDims,
     trainingScore,
     placementScore,
-    flags: influenced
-      ? rec.flags
-      : rec.flags,
+    flags: rec.flags,
     eligible,
     ineligibleReason: eligible
       ? undefined
