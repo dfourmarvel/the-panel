@@ -7,6 +7,7 @@ import {
   allocate,
   DIMENSIONS,
   PLACEMENT_DIMENSIONS,
+  flipPoint,
   TRAINING_SPOTS,
   PLACEMENT_SPOTS,
   type Record_,
@@ -57,29 +58,27 @@ function Rich({ text }: { text: string }) {
 function EvidenceRow({ e }: { e: Evidence }) {
   const pos = e.delta > 0;
   return (
-    <li className="ev-in flex gap-2.5 py-1.5">
+    <li className="ev-in">
       <span
-        className={`tnum shrink-0 w-9 text-right text-[12px] font-semibold ${
+        className={`tnum block font-mono text-[12px] font-semibold ${
           pos ? "text-accent" : "text-against"
         }`}
       >
         {pos ? "+" : ""}
         {e.delta.toFixed(1)}
       </span>
-      <span className="min-w-0">
-        <span className="text-[12px] font-medium text-ink-soft">
-          {labelOf(e.dimension)}
-        </span>
-        <span
-          className={`ml-1.5 text-[10px] uppercase tracking-wide ${
-            e.verified ? "text-place" : "text-mark"
-          }`}
-        >
-          {e.verified ? "verified" : "asserted · ⅓ weight"}
-        </span>
-        <span className="block text-[12.5px] leading-[1.5] text-muted">
-          {e.because}
-        </span>
+      <span className="mt-0.5 block text-[11.5px] font-medium text-ink-soft">
+        {labelOf(e.dimension)}
+      </span>
+      <span
+        className={`block text-[10px] uppercase tracking-[0.08em] ${
+          e.verified ? "text-place" : "text-mark"
+        }`}
+      >
+        {e.verified ? "verified" : "asserted · ⅓ weight"}
+      </span>
+      <span className="mt-1 block text-[11.5px] leading-[1.5] text-muted">
+        {e.because}
       </span>
     </li>
   );
@@ -87,19 +86,25 @@ function EvidenceRow({ e }: { e: Evidence }) {
 
 function FlagRow({ f }: { f: Flag }) {
   return (
-    <li className="ev-in flex gap-2.5 py-1.5">
-      <span className="shrink-0 w-9 text-right text-[11px] font-semibold text-mark">
+    <li className="ev-in">
+      <span className="block font-mono text-[12px] font-semibold text-mark">
         flag
       </span>
-      <span className="min-w-0">
-        <span className="text-[12px] font-medium text-mark">{f.kind}</span>
-        <span className="block text-[12.5px] leading-[1.5] text-muted">
-          {f.note}
-        </span>
+      <span className="mt-0.5 block text-[11.5px] font-medium text-mark">
+        {f.kind}
+      </span>
+      <span className="mt-1 block text-[11.5px] leading-[1.5] text-muted">
+        {f.note}
       </span>
     </li>
   );
 }
+
+const RAIL_TABS = [
+  { id: "scorecard" as const, label: "Scorecard" },
+  { id: "standings" as const, label: "Standings" },
+  { id: "log" as const, label: "Log" },
+];
 
 function Bar({ v, tone }: { v: number; tone: "accent" | "place" }) {
   const pos = v >= 0;
@@ -134,6 +139,9 @@ export default function Page() {
   const [autoRunning, setAutoRunning] = useState(false);
   const [view, setView] = useState<"brief" | "interview" | "decision" | "prompt" | "judges">("brief");
   const [justMoved, setJustMoved] = useState<string | null>(null);
+  const [rail, setRail] = useState<(typeof RAIL_TABS)[number]["id"]>(
+    "scorecard"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const persona = PERSONAS.find((p) => p.id === active)!;
@@ -147,6 +155,38 @@ export default function Page() {
   const activeScore = useMemo(() => scoreRecord(rec), [rec]);
   const interviewed = scores.filter((s) => s.eligible).length;
   const complete = interviewed === PERSONAS.length;
+
+  const cutoff = alloc.ranked.find(
+    (r) => r.applicantId === alloc.training[alloc.training.length - 1]
+  );
+
+  /** One plain sentence for what the active applicant's number means. */
+  const verdict = useMemo(() => {
+    if (!activeScore.eligible)
+      return {
+        tone: "none" as const,
+        head: "Not scored yet",
+        sub: activeScore.ineligibleReason ?? "",
+      };
+    if (!cutoff) return null;
+    const margin = activeScore.trainingScore - cutoff.trainingScore;
+    if (alloc.training.includes(active))
+      return {
+        tone: "in" as const,
+        head: `Holds a seat · ${margin.toFixed(1)} above the cutline`,
+        sub: alloc.placement.includes(active)
+          ? "And one of the two guaranteed jobs."
+          : "Seat only — the job rubric is scored separately.",
+      };
+    const flip = flipPoint(activeScore, cutoff.trainingScore);
+    return {
+      tone: "out" as const,
+      head: `Below the cutline by ${flip.gap.toFixed(1)}`,
+      sub: flip.routes[0]
+        ? `Closest route back: ${flip.routes[0].label.toLowerCase()}.`
+        : "No route back on the current evidence.",
+    };
+  }, [activeScore, cutoff, alloc, active]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 1e6, behavior: "smooth" });
@@ -343,7 +383,8 @@ export default function Page() {
     <button
       onClick={() => enabled && setView(id)}
       disabled={!enabled}
-      className={`px-3 py-1.5 text-[13px] rounded-md transition-colors ${
+      title={enabled ? undefined : "Available once an interview has run"}
+      className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-[13px] rounded-md transition-colors ${
         view === id
           ? "bg-surface text-ink shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
           : enabled
@@ -369,7 +410,7 @@ export default function Page() {
             </p>
           </div>
 
-          <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-panel border border-rule sm:ml-2 order-3 sm:order-none w-full sm:w-auto">
+          <div className="order-3 flex w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-rule bg-panel p-0.5 sm:order-none sm:ml-2 sm:w-auto">
             {tab("brief", "Brief")}
             {tab("interview", "Interviews", interviewed > 0 || autoRunning)}
             {tab("decision", "Decision", interviewed > 0)}
@@ -404,10 +445,20 @@ export default function Page() {
         <div className="mx-auto max-w-2xl px-6 py-14 sm:py-20">
           <button
             onClick={() => setView("judges")}
-            className="mb-7 inline-flex items-center gap-2 text-[13px] text-accent hover:underline underline-offset-4"
+            className="mb-8 flex w-full items-center gap-3 rounded-xl border border-accent/25 bg-accent-soft px-4 py-3 text-left transition-colors hover:border-accent/45"
           >
-            Judging this? Start here — how it works, and what to try
-            <span aria-hidden>&rarr;</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-medium text-accent">
+                Judging this? Start here
+              </span>
+              <span className="mt-0.5 block text-[12.5px] leading-[1.5] text-ink-soft">
+                How it works, every constraint in the brief and where it is met,
+                and four things to try.
+              </span>
+            </span>
+            <span aria-hidden className="shrink-0 text-accent">
+              &rarr;
+            </span>
           </button>
           <p className="text-[13px] text-muted mb-5">The problem</p>
           <p className="text-[22px] sm:text-[26px] leading-[1.35] tracking-[-0.015em] text-balance">
@@ -466,8 +517,13 @@ export default function Page() {
       )}
 
       {view === "interview" && (
-        <div className="grid lg:grid-cols-[290px_1fr_330px]">
-          <aside className="border-b lg:border-b-0 lg:border-r border-rule p-2.5 lg:max-h-[calc(100vh-65px)] overflow-y-auto">
+        <div className="grid lg:grid-cols-[256px_1fr_288px]">
+          {/* Identity and number only. The one-liners are on the Brief, and
+              repeating them here was what made this column unreadable. */}
+          <aside className="border-b lg:border-b-0 lg:border-r border-rule px-2.5 py-3.5 lg:max-h-[calc(100vh-65px)] overflow-y-auto">
+            <p className="mb-2 px-2.5 text-[10px] uppercase tracking-[0.11em] text-muted">
+              Ranked live · {interviewed} of {PERSONAS.length}
+            </p>
             {alloc.ranked.map((s, i) => {
               const p = PERSONAS.find((x) => x.id === s.applicantId)!;
               const picked = alloc.training.includes(p.id);
@@ -475,17 +531,19 @@ export default function Page() {
               return (
                 <div key={p.id}>
                   {i === TRAINING_SPOTS && interviewed > 0 && (
-                    <div className="flex items-center gap-2.5 my-2.5 px-2">
+                    <div className="my-2 flex items-center gap-2.5 px-2">
                       <div className="h-px flex-1 bg-mark/35" />
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-mark">
+                      <span className="tnum text-[10px] uppercase tracking-[0.14em] text-mark">
                         cutline
+                        {cutoff ? ` · ${cutoff.trainingScore.toFixed(1)}` : ""}
                       </span>
                       <div className="h-px flex-1 bg-mark/35" />
                     </div>
                   )}
                   <button
                     onClick={() => setActive(p.id)}
-                    className={`row-move w-full text-left px-2.5 py-2.5 rounded-lg border ${
+                    title={p.oneLiner}
+                    className={`row-move flex w-full items-baseline gap-2 rounded-lg border px-2.5 py-2 text-left ${
                       justMoved === p.id ? "pulse-once " : ""
                     }${
                       active === p.id
@@ -493,130 +551,132 @@ export default function Page() {
                         : "border-transparent hover:bg-panel"
                     }`}
                   >
-                    <div className="flex items-baseline gap-2">
-                      <span className="tnum w-4 shrink-0 text-[11px] text-muted">
-                        {i + 1}
+                    <span className="tnum w-3.5 shrink-0 text-[11.5px] text-muted">
+                      {i + 1}
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 truncate text-[13.5px] ${
+                        picked ? "font-medium" : "text-ink-soft"
+                      }`}
+                    >
+                      {p.name}
+                    </span>
+                    {placed && (
+                      <span className="shrink-0 rounded bg-place-soft px-1.5 py-0.5 text-[10px] font-medium text-place">
+                        job
                       </span>
-                      <span className="text-[13.5px] font-medium truncate">
-                        {p.name}
-                      </span>
-                      {placed ? (
-                        <span className="ml-auto shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-place-soft text-place">
-                          job
-                        </span>
-                      ) : picked ? (
-                        <span className="ml-auto shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent-soft text-accent">
-                          seat
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="pl-6 pr-1">
-                      <div className="text-[12px] text-muted leading-snug truncate">
-                        {p.oneLiner}
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <span
-                          className={`tnum text-[12px] font-medium w-9 ${
-                            s.eligible ? "text-ink-soft" : "text-rule"
-                          }`}
-                        >
-                          {s.eligible ? s.trainingScore.toFixed(1) : "—"}
-                        </span>
-                        <div className="relative h-1 flex-1 rounded-full bg-rule-soft overflow-hidden">
-                          <div
-                            className="bar-fill absolute inset-y-0 left-0 rounded-full bg-ink-soft"
-                            style={{
-                              width: `${Math.max(
-                                0,
-                                Math.min(100, (s.trainingScore / 18) * 100)
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="tnum text-[11px] text-muted shrink-0">
-                          {records[p.id].probeCount}q
-                        </span>
-                      </div>
-                    </div>
+                    )}
+                    <span
+                      className={`tnum w-9 shrink-0 text-right text-[13px] ${
+                        s.eligible ? "text-ink-soft" : "text-rule"
+                      }`}
+                    >
+                      {s.eligible ? s.trainingScore.toFixed(1) : "—"}
+                    </span>
                   </button>
                 </div>
               );
             })}
           </aside>
 
-          <section className="flex flex-col lg:max-h-[calc(100vh-65px)] border-b lg:border-b-0 border-rule">
-            <div className="px-5 sm:px-7 py-3.5 border-b border-rule">
-              <div className="text-[14px] font-semibold">
+          <section className="flex flex-col border-b border-rule lg:max-h-[calc(100vh-65px)] lg:border-b-0">
+            <div className="border-b border-rule px-6 py-4 sm:px-8">
+              <div className="text-[17px] font-semibold tracking-[-0.012em]">
                 {persona.name}, {persona.age}
               </div>
-              <div className="text-[12.5px] text-muted">{persona.oneLiner}</div>
+              <div className="text-[13px] text-muted">
+                {persona.oneLiner} · {rec.probeCount} follow-up
+                {rec.probeCount === 1 ? "" : "s"}
+              </div>
             </div>
 
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 min-h-[340px]"
+              className="min-h-[360px] flex-1 overflow-y-auto px-6 py-6 sm:px-8"
             >
               {rec.transcript.length === 0 && (
-                <p className="text-[14.5px] leading-[1.6] text-muted max-w-[62ch]">
+                <p className="max-w-[60ch] text-[15px] leading-[1.62] text-muted">
                   {persona.opening}
                 </p>
               )}
 
-              <div className="max-w-[68ch] space-y-5">
-                {rec.transcript.map((m, i) =>
-                  m.role === "bot" ? (
-                    <div key={i}>
-                      <div className="text-[11px] text-muted mb-1">Panel</div>
-                      <p className="text-[14.5px] leading-[1.6]">{m.text}</p>
-                    </div>
-                  ) : (
-                    <div key={i}>
-                      <div className="text-[11px] text-muted mb-1">
-                        {first(persona.id)}
+              {rec.transcript.length > 0 && (
+                <div className="mb-4 hidden xl:grid xl:grid-cols-[minmax(0,1fr)_200px] xl:gap-x-8">
+                  <span className="text-[10px] uppercase tracking-[0.11em] text-muted">
+                    Interview
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.11em] text-muted">
+                    What the engine recorded
+                  </span>
+                </div>
+              )}
+
+              {/* Dialogue and scoring are different kinds of thing, so they get
+                  different columns rather than different margins. */}
+              <div className="space-y-6">
+                {rec.transcript.map((m, i) => (
+                  <div
+                    key={i}
+                    className="xl:grid xl:grid-cols-[minmax(0,1fr)_200px] xl:gap-x-8"
+                  >
+                    {m.role === "bot" ? (
+                      <div>
+                        <div className="mb-1 text-[11.5px] text-muted">
+                          Panel
+                        </div>
+                        <p className="max-w-[62ch] text-[15px] leading-[1.62]">
+                          {m.text}
+                        </p>
                       </div>
-                      <p className="text-[14.5px] leading-[1.6] text-ink-soft pl-3 border-l-2 border-rule">
-                        {m.text}
-                      </p>
-                      {((m.evidence?.length ?? 0) > 0 ||
-                        (m.flags?.length ?? 0) > 0) && (
-                        <ul className="mt-2.5 ml-3 pl-3 border-l border-rule-soft">
-                          {m.evidence?.map((e, j) => (
-                            <EvidenceRow key={j} e={e} />
-                          ))}
-                          {m.flags?.map((f, j) => (
-                            <FlagRow key={j} f={f} />
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )
-                )}
+                    ) : (
+                      <div>
+                        <div className="mb-1 text-[11.5px] text-muted">
+                          {first(persona.id)}
+                        </div>
+                        <p className="max-w-[62ch] border-l-2 border-rule pl-3.5 text-[15px] leading-[1.62] text-ink-soft">
+                          {m.text}
+                        </p>
+                      </div>
+                    )}
+                    {((m.evidence?.length ?? 0) > 0 ||
+                      (m.flags?.length ?? 0) > 0) && (
+                      <ul className="mt-3 space-y-3 border-l border-rule-soft pl-4 xl:mt-0">
+                        {m.evidence?.map((e, j) => (
+                          <EvidenceRow key={j} e={e} />
+                        ))}
+                        {m.flags?.map((f, j) => (
+                          <FlagRow key={j} f={f} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="border-t border-rule px-5 sm:px-7 py-3 space-y-3">
+            <div className="space-y-3 border-t border-rule px-6 py-3.5 sm:px-8">
               <div className="flex items-center gap-2.5">
-                <span className="text-[10.5px] uppercase tracking-wider text-muted w-9">
+                <span className="w-9 text-[10.5px] uppercase tracking-wider text-muted">
                   Demo
                 </span>
                 <button
                   onClick={() => stepScripted(active)}
                   disabled={rec.probeCount >= persona.turns.length || busy}
-                  className="px-2.5 py-1.5 rounded-md border border-rule text-[12px] text-ink-soft hover:bg-panel disabled:opacity-35 transition-colors"
+                  className="rounded-md border border-rule px-2.5 py-1.5 text-[12.5px] text-ink-soft transition-colors hover:bg-panel disabled:opacity-35"
                 >
                   Step one probe · {rec.probeCount}/{persona.turns.length}
                 </button>
                 {source && (
-                  <span className="text-[11px] text-muted">
+                  <span className="text-[11.5px] text-muted">
                     {source === "llm" ? "live model" : source}
                   </span>
                 )}
               </div>
               <div className="flex flex-wrap items-start gap-2.5">
-                <span className="text-[10.5px] uppercase tracking-wider text-muted w-9 pt-2.5">
+                <span className="w-9 pt-2.5 text-[10.5px] uppercase tracking-wider text-muted">
                   Live
                 </span>
-                <p className="flex-1 min-w-[240px] text-[12px] leading-[1.5] text-muted pt-2">
+                <p className="min-w-[240px] flex-1 pt-2 text-[12.5px] leading-[1.5] text-muted">
                   Type as {first(persona.id)} and the next question is written in
                   real time against her file. Try contradicting it, or try
                   telling it what to decide.
@@ -630,12 +690,12 @@ export default function Page() {
                   placeholder={`Answer as ${first(
                     persona.id
                   )} — try contradicting the file`}
-                  className="flex-1 bg-surface border border-rule rounded-lg px-3 py-2 text-[13.5px] placeholder:text-muted outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition-shadow"
+                  className="flex-1 rounded-lg border border-rule bg-surface px-3 py-2 text-[14px] outline-none transition-shadow placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent-soft"
                 />
                 <button
                   onClick={() => sendLive()}
                   disabled={busy}
-                  className="px-3.5 py-2 rounded-lg bg-ink text-paper text-[13px] font-medium hover:bg-ink-soft disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper transition-colors hover:bg-ink-soft disabled:opacity-40"
                 >
                   {busy ? "…" : "Send"}
                 </button>
@@ -643,110 +703,164 @@ export default function Page() {
             </div>
           </section>
 
-          <aside className="p-4 sm:p-5 space-y-7 lg:max-h-[calc(100vh-65px)] overflow-y-auto">
-            <div>
-              <h2 className="text-[12px] font-medium text-muted mb-3">
-                Allocation so far
-              </h2>
-              {interviewed === 0 ? (
-                <p className="text-[12.5px] leading-[1.55] text-muted">
-                  Nothing decided. Every applicant needs at least two follow-up
-                  questions before the engine will score them at all.
-                </p>
-              ) : (
-                <ol className="space-y-1.5">
-                  {alloc.training.map((id, i) => (
-                    <li
-                      key={id}
-                      className="flex items-baseline gap-2 text-[13.5px]"
-                    >
-                      <span className="tnum w-3.5 text-[11px] text-muted">
-                        {i + 1}
-                      </span>
-                      <span className="truncate">{nameOf(id)}</span>
-                      {alloc.placement.includes(id) && (
-                        <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded bg-place-soft text-place">
-                          job
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                  {Array.from({
-                    length: TRAINING_SPOTS - alloc.training.length,
-                  }).map((_, i) => (
-                    <li
-                      key={`e${i}`}
-                      className="flex items-baseline gap-2 text-[13.5px] text-rule"
-                    >
-                      <span className="tnum w-3.5 text-[11px]">
-                        {alloc.training.length + i + 1}
-                      </span>
-                      <span>unfilled</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
+          {/* One panel at a time. Stacking all three is what turned this rail
+              into a wall of numbers. */}
+          <aside className="flex flex-col lg:max-h-[calc(100vh-65px)]">
+            <div className="px-4 pt-4 sm:px-5 sm:pt-5">
+              <div className="flex gap-0.5 rounded-lg border border-rule bg-panel p-0.5">
+                {RAIL_TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setRail(t.id)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-[12px] transition-colors ${
+                      rail === t.id
+                        ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {rec.evidence.length > 0 && (
-              <div>
-                <h2 className="text-[12px] font-medium text-muted mb-3">
-                  {first(persona.id)} · scorecard
-                </h2>
-                <div className="space-y-2">
-                  {(Object.keys(DIMENSIONS) as DimensionKey[]).map((k) => (
-                    <div key={k} className="flex items-center gap-2.5">
-                      <span className="w-[104px] shrink-0 text-[11.5px] text-muted">
-                        {DIMENSIONS[k].label}
-                      </span>
-                      <Bar v={activeScore.dims[k]} tone="accent" />
-                      <span className="tnum w-8 text-right text-[11.5px] text-ink-soft">
-                        {activeScore.dims[k].toFixed(1)}
-                      </span>
-                    </div>
-                  ))}
-                  <p className="pt-3 text-[11px] text-muted border-t border-rule-soft">
-                    Counts only for the two guaranteed jobs
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+              {rail === "scorecard" &&
+                (rec.evidence.length === 0 ? (
+                  <p className="text-[12.5px] leading-[1.55] text-muted">
+                    Nothing recorded for {first(persona.id)} yet. Ask a probe, or
+                    press Run all nine.
                   </p>
-                  {(Object.keys(PLACEMENT_DIMENSIONS) as PlacementKey[]).map(
-                    (k) => (
+                ) : (
+                  <div className="space-y-2">
+                    <p className="mb-3 text-[12.5px] font-medium">
+                      {persona.name}
+                    </p>
+                    {(Object.keys(DIMENSIONS) as DimensionKey[]).map((k) => (
                       <div key={k} className="flex items-center gap-2.5">
-                        <span className="w-[104px] shrink-0 text-[11.5px] text-muted">
-                          {PLACEMENT_DIMENSIONS[k].label}
+                        <span className="w-[104px] shrink-0 text-[12px] text-muted">
+                          {DIMENSIONS[k].label}
                         </span>
-                        <Bar v={activeScore.placementDims[k]} tone="place" />
-                        <span className="tnum w-8 text-right text-[11.5px] text-ink-soft">
-                          {activeScore.placementDims[k].toFixed(1)}
+                        <Bar v={activeScore.dims[k]} tone="accent" />
+                        <span className="tnum w-8 text-right text-[12px] text-ink-soft">
+                          {activeScore.dims[k].toFixed(1)}
                         </span>
                       </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
+                    ))}
+                    <p className="border-t border-rule-soft pt-3 text-[10px] uppercase tracking-[0.11em] text-muted">
+                      Guaranteed-job rubric only
+                    </p>
+                    {(Object.keys(PLACEMENT_DIMENSIONS) as PlacementKey[]).map(
+                      (k) => (
+                        <div key={k} className="flex items-center gap-2.5">
+                          <span className="w-[104px] shrink-0 text-[12px] text-muted">
+                            {PLACEMENT_DIMENSIONS[k].label}
+                          </span>
+                          <Bar v={activeScore.placementDims[k]} tone="place" />
+                          <span className="tnum w-8 text-right text-[12px] text-ink-soft">
+                            {activeScore.placementDims[k].toFixed(1)}
+                          </span>
+                        </div>
+                      )
+                    )}
+                    {verdict && (
+                      <div
+                        className={`mt-4 rounded-lg px-3.5 py-3 ${
+                          verdict.tone === "in"
+                            ? "bg-place-soft"
+                            : verdict.tone === "out"
+                            ? "bg-against-soft"
+                            : "bg-panel"
+                        }`}
+                      >
+                        <p
+                          className={`text-[12.5px] font-medium ${
+                            verdict.tone === "in"
+                              ? "text-place"
+                              : verdict.tone === "out"
+                              ? "text-against"
+                              : "text-ink-soft"
+                          }`}
+                        >
+                          {verdict.head}
+                        </p>
+                        <p className="mt-1 text-[12px] leading-[1.5] text-ink-soft">
+                          {verdict.sub}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
 
-            {events.length > 0 && (
-              <div>
-                <h2 className="text-[12px] font-medium text-muted mb-3">
-                  Revision log
-                </h2>
-                <ul className="space-y-1.5">
-                  {events.slice(-8).map((e, i) => (
-                    <li key={i} className="text-[12px] leading-snug text-ink-soft">
-                      {e}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {rail === "standings" &&
+                (interviewed === 0 ? (
+                  <p className="text-[12.5px] leading-[1.55] text-muted">
+                    Nothing decided. Every applicant needs at least two follow-up
+                    questions before the engine will score them at all.
+                  </p>
+                ) : (
+                  <ol className="space-y-1.5">
+                    {alloc.training.map((id, i) => (
+                      <li
+                        key={id}
+                        className="flex items-baseline gap-2 text-[13.5px]"
+                      >
+                        <span className="tnum w-3.5 text-[11px] text-muted">
+                          {i + 1}
+                        </span>
+                        <span className="truncate">{nameOf(id)}</span>
+                        {alloc.placement.includes(id) && (
+                          <span className="ml-auto rounded bg-place-soft px-1.5 py-0.5 text-[10px] font-medium text-place">
+                            job
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                    {Array.from({
+                      length: TRAINING_SPOTS - alloc.training.length,
+                    }).map((_, i) => (
+                      <li
+                        key={`e${i}`}
+                        className="flex items-baseline gap-2 text-[13.5px] text-rule"
+                      >
+                        <span className="tnum w-3.5 text-[11px]">
+                          {alloc.training.length + i + 1}
+                        </span>
+                        <span>unfilled</span>
+                      </li>
+                    ))}
+                  </ol>
+                ))}
+
+              {rail === "log" &&
+                (events.length === 0 ? (
+                  <p className="text-[12.5px] leading-[1.55] text-muted">
+                    Nothing to revise yet. This fills up when someone discloses
+                    something that moves them.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {events.slice(-12).map((e, i) => (
+                      <li
+                        key={i}
+                        className="text-[12.5px] leading-snug text-ink-soft"
+                      >
+                        {e}
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+            </div>
 
             {interviewed > 0 && (
-              <button
-                onClick={() => setView("decision")}
-                className="w-full px-3 py-2.5 rounded-lg border border-rule text-[13px] hover:bg-panel transition-colors"
-              >
-                See the decision
-              </button>
+              <div className="border-t border-rule p-4 sm:p-5">
+                <button
+                  onClick={() => setView("decision")}
+                  className="w-full rounded-lg border border-rule px-3 py-2.5 text-[13px] transition-colors hover:bg-panel"
+                >
+                  See the decision
+                </button>
+              </div>
             )}
           </aside>
         </div>
