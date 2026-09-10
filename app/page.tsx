@@ -594,14 +594,17 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="border-t border-rule px-5 sm:px-7 py-3 space-y-2.5">
+            <div className="border-t border-rule px-5 sm:px-7 py-3 space-y-3">
               <div className="flex items-center gap-2.5">
+                <span className="text-[10.5px] uppercase tracking-wider text-muted w-9">
+                  Demo
+                </span>
                 <button
                   onClick={() => stepScripted(active)}
                   disabled={rec.probeCount >= persona.turns.length || busy}
                   className="px-2.5 py-1.5 rounded-md border border-rule text-[12px] text-ink-soft hover:bg-panel disabled:opacity-35 transition-colors"
                 >
-                  Next scripted probe · {rec.probeCount}/{persona.turns.length}
+                  Step one probe · {rec.probeCount}/{persona.turns.length}
                 </button>
                 {source && (
                   <span className="text-[11px] text-muted">
@@ -609,12 +612,17 @@ export default function Page() {
                   </span>
                 )}
               </div>
-              <p className="text-[12px] leading-[1.5] text-muted">
-                Not a script. Type as {first(persona.id)} and the next question
-                is written live against her file. Try contradicting it, or try
-                telling it what to decide.
-              </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-start gap-2.5">
+                <span className="text-[10.5px] uppercase tracking-wider text-muted w-9 pt-2.5">
+                  Live
+                </span>
+                <p className="flex-1 min-w-[240px] text-[12px] leading-[1.5] text-muted pt-2">
+                  Type as {first(persona.id)} and the next question is written in
+                  real time against her file. Try contradicting it, or try
+                  telling it what to decide.
+                </p>
+              </div>
+              <div className="flex gap-2 sm:pl-[46px]">
                 <input
                   value={liveInput}
                   onChange={(e) => setLiveInput(e.target.value)}
