@@ -712,6 +712,7 @@ export default function Page() {
                   <button
                     key={t.id}
                     onClick={() => setRail(t.id)}
+                    aria-pressed={rail === t.id}
                     className={`flex-1 rounded-md px-2 py-1.5 text-[12px] transition-colors ${
                       rail === t.id
                         ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.06)]"

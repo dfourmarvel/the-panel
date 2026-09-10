@@ -103,11 +103,25 @@ const CLAIMS: { head: string; sub: string }[] = [
   },
 ];
 
-function Chip({ children }: { children: React.ReactNode }) {
+const REPO = "https://github.com/dfourmarvel/the-panel/blob/master/";
+
+/** A reference like "lib/rubric.ts · allocate()" opens the file; one like
+ *  "Yaw Mensah, probe 1" points at a moment in the demo and stays plain text. */
+function Chip({ children }: { children: string }) {
+  const path = children.split(" ")[0];
+  const style =
+    "inline-block rounded border border-rule-soft bg-panel px-1.5 py-0.5 font-mono text-[11px] text-muted";
+  if (!/^[\w./-]+\.(ts|tsx)$/.test(path))
+    return <span className={style}>{children}</span>;
   return (
-    <span className="rounded border border-rule-soft bg-panel px-1.5 py-0.5 font-mono text-[11px] text-muted">
+    <a
+      href={REPO + path}
+      target="_blank"
+      rel="noreferrer"
+      className={`${style} transition-colors hover:border-accent hover:text-accent`}
+    >
       {children}
-    </span>
+    </a>
   );
 }
 
@@ -133,6 +147,12 @@ function Section({
   );
 }
 
+/** toFixed(1) silently rounds a 0.55 weight to 0.6, which is exactly the drift
+ *  a judge would catch by grepping the source. Keep the second decimal when it
+ *  carries information, drop it when it does not. */
+const fmtWeight = (w: number) =>
+  w.toFixed(2).endsWith("0") ? w.toFixed(1) : w.toFixed(2);
+
 function WeightTable({
   rows,
 }: {
@@ -142,8 +162,8 @@ function WeightTable({
     <ul className="divide-y divide-rule-soft border-y border-rule-soft">
       {rows.map((r) => (
         <li key={r.label} className="flex gap-4 py-3">
-          <span className="tnum w-10 shrink-0 font-mono text-[12.5px] text-accent">
-            ×{r.weight.toFixed(1)}
+          <span className="tnum w-12 shrink-0 font-mono text-[12.5px] text-accent">
+            ×{fmtWeight(r.weight)}
           </span>
           <span className="min-w-0">
             <span className="block text-[13.5px] font-medium">{r.label}</span>
@@ -308,8 +328,15 @@ export default function JudgesNote() {
         <dl className="divide-y divide-rule-soft border-y border-rule-soft">
           {FILES.map((f) => (
             <div key={f.path} className="gap-4 py-3 sm:flex">
-              <dt className="shrink-0 font-mono text-[12.5px] text-ink-soft sm:w-52">
-                {f.path}
+              <dt className="shrink-0 font-mono text-[12.5px] sm:w-52">
+                <a
+                  href={REPO + f.path}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ink-soft underline decoration-rule underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
+                >
+                  {f.path}
+                </a>
               </dt>
               <dd className="mt-1 text-[13.5px] leading-[1.55] text-muted sm:mt-0">
                 {f.what}
